@@ -57,7 +57,6 @@ function initGlobe(devs){
   wrap.innerHTML='';
 
   const maxModels=Math.max(...devs.map(d=>d.models));
-  const maxCo2=Math.max(...devs.map(d=>d.maxCo2))||1;
   const maxWh1k=Math.max(...devs.map(d=>d.maxWh1k))||1;
 
   // Fibonacci sphere
@@ -82,7 +81,6 @@ function initGlobe(devs){
   const tags=[];
   devs.forEach((d,i)=>{
     const [r,g,b]=d.rgb;
-    const intensity=0.45+0.55*(d.maxCo2/maxCo2);
     const fsize=Math.round(11+(d.models/maxModels)*14);
     const el=document.createElement('div');
     el.className='globe-tag';
@@ -107,7 +105,7 @@ function initGlobe(devs){
       tt.classList.add('on');
     });
     el.addEventListener('mouseleave',()=>tt.classList.remove('on'));
-    tags.push({el,p:{...pts[i]},color:[r,g,b],intensity});
+    tags.push({el,p:{...pts[i]},color:[r,g,b]});
   });
 
   function spawnBubbles(e,dev,rgb){
@@ -148,7 +146,7 @@ function initGlobe(devs){
       if(Math.abs(velY)<0.002) velY=0.002;
     }
     const sr=getSR(), cxv=getCX(), cyv=getCY();
-    tags.forEach(({el,p,color,intensity})=>{
+    tags.forEach(({el,p,color})=>{
       const rp=rotate(p,rotX,rotY);
       const scale=(rp.z+1.5)/2.5;
       const screenX=cxv+rp.x*sr, screenY=cyv+rp.y*sr;
@@ -157,7 +155,7 @@ function initGlobe(devs){
       el.style.zIndex=Math.round(rp.z*100+200);
       const alpha=rp.z>0?0.55+0.45*rp.z:0.08+0.25*(rp.z+1);
       const [r,g,b]=color;
-      const bright=Math.round(140+intensity*115);
+      const bright=220;
       el.style.color=`rgba(${Math.min(r+bright-140,255)},${Math.min(g+bright-140,255)},${Math.min(b+bright-140,255)},${alpha.toFixed(2)})`;
       el.style.transform=`scale(${(0.6+0.4*scale).toFixed(3)})`;
       el.style.textShadow=rp.z>0.3?`0 0 ${Math.round(rp.z*14)}px rgba(${r},${g},${b},.55)`:'none';
@@ -254,33 +252,66 @@ function initVega(models, global){
   const devMax = Math.max(0, ...top10Dev.map(d=>d.total_wh1k));
   const devMaxDomain = Math.max(devMax * 1.02, devMax + 0.01);
 
-  vegaEmbed('#bar-top10-dev',{ 
+  let activeDev=null;
+  vegaEmbed('#bar-top10-dev',{
     $schema:"https://vega.github.io/schema/vega-lite/v5.json",
     data:{values:top10Dev},
-    width:chartWidth,height:240,background:"transparent",
-    mark:{type:"bar",cornerRadiusEnd:2},
+    width:chartWidth,height:340,background:"transparent",autosize:{type:"fit",contains:"padding"},padding:{right:1},
+    mark:{type:"bar",cornerRadiusEnd:2,size:26,cursor:"pointer"},
     encoding:{
-      x:{field:"total_wh1k",type:"quantitative",title:"Total Wh per 1000 queries",scale:{domain:[0,devMaxDomain],nice:false},axis:{...dark,labelColor:'#fff',titleColor:'#fff',labelFontSize:12,titleFontSize:13,tickColor:'rgba(255,255,255,0.8)'}},
-      y:{field:"dev",type:"nominal",sort:null,title:null,axis:{...nl,labelColor:'#fff',labelFontSize:12}},
+      x:{field:"total_wh1k",type:"quantitative",title:"Total Wh per 1000 queries",scale:{domain:[0,devMaxDomain],nice:false},axis:{...dark,labelColor:'rgba(255,255,255,0.742)',titleColor:'rgba(255,255,255,0.742)',labelFontSize:12,titleFontSize:16,tickColor:'rgba(255,255,255,0.8)',titlePadding:16}},
+      y:{field:"dev",type:"nominal",sort:null,title:null,axis:{...nl,labelColor:'rgba(255,255,255,0.742)',labelFontSize:12}},
       color:{field:"isTop3",type:"nominal",scale:{domain:[true,false],range:["#03FFA5","#2a4a3f"]},legend:null},
-      tooltip:[{field:"total_wh1k",title:"Total Wh/1000",format:".2f"},{field:"count",title:"Models"}]
+      tooltip:[{field:"total_wh1k",title:"Total Wh/1000",format:".2f"},{field:"count",title:"Models"},{field:"dev",title:"Click top 3 to expand"}]
     },config:cfg
-  },{actions:false});
+  },{actions:false}).then(result=>{
+    result.view.addEventListener('click',(_,item)=>{
+      if(!item||!item.datum) return;
+      const d=item.datum;
+      if(!d.isTop3) return;
+      const drill=document.getElementById('dev-drill');
+      const label=document.getElementById('dev-drill-label');
+      if(activeDev===d.dev){ activeDev=null; drill.style.display='none'; return; }
+      activeDev=d.dev;
+      const devModelsRaw=models.filter(m=>m.dev===d.dev);
+      const devModels=devModelsRaw;
+      const uniqueModels=[...new Set(devModels.map(m=>m.model))];
+const modelMax2=Math.ceil(Math.max(...devModels.map(m=>m.wh1k)));
+      const drillWidth=Math.min(chartWidth, document.getElementById('bar-top10-dev').clientWidth||chartWidth);
+      label.textContent=`↳ ${d.dev} — all models · Wh per 1,000 queries  (click again to close)`;
+      drill.style.display='block';
+      const barSize=18;
+      const drillHeight=uniqueModels.length*(barSize+5)+40;
+
+      vegaEmbed('#dev-drill-chart',{
+        $schema:"https://vega.github.io/schema/vega-lite/v5.json",
+        data:{values:devModels},
+        width:drillWidth,background:"transparent",autosize:{type:"fit",contains:"padding"},padding:{right:1},
+        mark:{type:"bar",cornerRadiusEnd:3,size:barSize},
+        encoding:{
+          x:{field:"wh1k",type:"quantitative",title:"Wh per 1,000 queries",scale:{domain:[0,modelMax2 + 1],nice:false},axis:{...dark,labelColor:'rgba(255,255,255,0.742)',titleColor:'rgba(255,255,255,0.742)',labelFontSize:12,titleFontSize:16,tickColor:'rgba(255,255,255,0.6)',tickCount:10,format:".0f",titlePadding:14}},
+          y:{field:"model",type:"nominal",sort:"-x",title:null,axis:{...nl,labelColor:'rgba(255,255,255,0.742)',labelFontSize:11}},
+          color:{field:"type",type:"nominal",scale:{domain:typeDomain,range:typeColors},legend:{title:null,orient:"top",labelColor:'rgba(255,255,255,0.742)',labelFontSize:10}},
+          tooltip:[{field:"model"},{field:"type"},{field:"wh1k",title:"Wh/1000",format:".4f"}]
+        },config:cfg
+      },{actions:false});
+    });
+  });
 
   // Top 10 model chart (deduplicate by model name, keep max wh1k)
   const modelMap={};
   models.forEach(m=>{ if(!modelMap[m.model]||m.wh1k>modelMap[m.model].wh1k) modelMap[m.model]=m; });
   const top10e=Object.values(modelMap).sort((a,b)=>b.wh1k-a.wh1k).slice(0,10).map((d,i)=>({...d,rank:i+1,isTop3:i<3}));
   const modelMax = Math.max(0, ...top10e.map(d=>d.wh1k));
-  const modelMaxDomain = Math.max(modelMax * 1.01, modelMax + 0.01);
+  const modelMaxDomain = modelMax * 1.02;
   const vegaSpec={
     $schema:"https://vega.github.io/schema/vega-lite/v5.json",
     data:{values:top10e},
-    width:modelChartWidth,height:240,background:"transparent",
-    mark:{type:"bar",cornerRadiusEnd:2},
+    width:modelChartWidth,height:340,background:"transparent",autosize:{type:"fit",contains:"padding"},padding:{right:1},
+    mark:{type:"bar",cornerRadiusEnd:2,size:26},
     encoding:{
-      x:{field:"wh1k",type:"quantitative",title:"Wh per 1000 queries",scale:{domain:[0,modelMaxDomain],nice:false},axis:{...dark,labelColor:'#fff',titleColor:'#fff',labelFontSize:12,titleFontSize:13,tickColor:'rgba(255,255,255,0.8)'}},
-      y:{field:"model",type:"nominal",sort:null,title:null,axis:{...nl,labelColor:'#fff',labelFontSize:12}},
+      x:{field:"wh1k",type:"quantitative",title:"Wh per 1000 queries",scale:{domain:[0,20],nice:false},axis:{...dark,labelColor:'rgba(255,255,255,0.742)',titleColor:'rgba(255,255,255,0.742)',labelFontSize:12,titleFontSize:16,tickColor:'rgba(255,255,255,0.8)',tickCount:10,format:".0f",titlePadding:16}},
+      y:{field:"model",type:"nominal",sort:null,title:null,axis:{...nl,labelColor:'rgba(255,255,255,0.742)',labelFontSize:12}},
       color:{field:"isTop3",type:"nominal",scale:{domain:[true,false],range:["#03FFA5","#2a4a3f"]},legend:null},
       tooltip:[{field:"dev"},{field:"wh1k",title:"Wh/1000",format:".2f"}]
     },config:cfg
@@ -288,203 +319,235 @@ function initVega(models, global){
   
   vegaEmbed('#bar-top10', vegaSpec, {actions:false});
 
-
-
-  const sv=models.map(d=>({...d,lc:Math.log10(d.co2_100)}));
-  vegaEmbed('#strip-plot',{
-    $schema:"https://vega.github.io/schema/vega-lite/v5.json",
-    data:{values:sv},width:chartWidth,height:260,background:"transparent",
-    mark:{type:"point",size:52,opacity:.78,filled:true},
-    encoding:{
-      x:{field:"lc",type:"quantitative",title:"CO₂ g/100q (log₁₀ scale)",axis:dark},
-      y:{field:"type",type:"nominal",title:null,sort:typeDomain,axis:nl},
-      color:{field:"type",type:"nominal",scale:{domain:typeDomain,range:typeColors},legend:null},
-      yOffset:{field:"model",type:"nominal"},
-      tooltip:[{field:"model"},{field:"dev"},{field:"type"},{field:"co2_100",title:"CO₂ g/100q",format:".6f"}]
-    },config:cfg
-  },{actions:false});
 }
 
 /* ─── LOLLIPOP ─── */
 function initLollipop(models){
   const wrap=document.getElementById('lollipop-chart');
   const top20=[...models].sort((a,b)=>b.wh100-a.wh100).slice(0,20);
-  const W=wrap.clientWidth, H=540, ML=200, MR=80, MT=12, MB=36;
+  const W=wrap.clientWidth, H=880, ML=200, MR=80, MT=32, MB=70;
   const svg=d3.select(wrap).append('svg').attr('width',W).attr('height',H).style('background','transparent');
+
+  // Legend
+  const legendItems=Object.entries(TC);
+  const lg=svg.append('g').attr('transform',`translate(${ML},8)`);
+  legendItems.forEach(([type,color],i)=>{
+    const g=lg.append('g').attr('transform',`translate(${i*110},0)`);
+    g.append('circle').attr('r',5).attr('cx',0).attr('cy',0).attr('fill',color);
+    g.append('text').attr('x',10).attr('y',4).attr('fill','#aaa').attr('font-size',12).attr('font-family','Roboto Mono').text(type);
+  });
   const x=d3.scaleLinear().domain([0,d3.max(top20,d=>d.wh100)*1.08]).range([ML,W-MR]);
   const y=d3.scaleBand().domain(top20.map(d=>d.model)).range([MT,H-MB]).padding(.32);
 
   svg.selectAll('.g').data(x.ticks(5)).join('line')
     .attr('x1',d=>x(d)).attr('x2',d=>x(d)).attr('y1',MT).attr('y2',H-MB)
     .attr('stroke','rgba(3,255,165,0.05)').attr('stroke-width',1);
+  svg.append('text')
+    .attr('x',(ML+W-MR)/2).attr('y',H-20)
+    .attr('text-anchor','middle').attr('fill','rgba(255,255,255,0.742)')
+    .attr('font-size',16).attr('font-family','Roboto Mono')
+    .text('Wh per 100 queries');
   svg.append('g').attr('transform',`translate(0,${H-MB})`)
     .call(d3.axisBottom(x).ticks(5).tickFormat(d=>d.toFixed(2)+' Wh'))
-    .call(g=>g.select('.domain').attr('stroke','rgba(3,255,165,0.18)'))
-    .call(g=>g.selectAll('text').attr('fill','#4a6356').attr('font-family','Roboto Mono').attr('font-size',9))
-    .call(g=>g.selectAll('.tick line').attr('stroke','rgba(3,255,165,0.08)'));
+    .call(g=>g.select('.domain').attr('stroke','rgba(255,255,255,0.3)'))
+    .call(g=>g.selectAll('text').attr('fill','rgba(255,255,255,0.742)').attr('font-family','Roboto Mono').attr('font-size',12))
+    .call(g=>g.selectAll('.tick line').attr('stroke','rgba(255,255,255,0.15)'));
   svg.selectAll('.yl').data(top20).join('text')
     .attr('x',ML-10).attr('y',d=>y(d.model)+y.bandwidth()/2+4)
-    .attr('text-anchor','end').attr('font-size',10).attr('fill','#4a6356').attr('font-family','Roboto Mono')
+    .attr('text-anchor','end').attr('font-size',12).attr('fill','rgba(255,255,255,0.742)').attr('font-family','Roboto Mono')
     .text(d=>d.model);
   svg.selectAll('.stem').data(top20).join('line')
     .attr('x1',x(0)).attr('x2',d=>x(d.wh100))
     .attr('y1',d=>y(d.model)+y.bandwidth()/2).attr('y2',d=>y(d.model)+y.bandwidth()/2)
-    .attr('stroke',d=>TC[d.type]+'33').attr('stroke-width',1.5);
+    .attr('stroke',d=>TC[d.type]+'66').attr('stroke-width',1.5);
   const tip=document.getElementById('gtip');
+  const countdowns={};
   svg.selectAll('.dot').data(top20).join('circle')
     .attr('cx',d=>x(d.wh100)).attr('cy',d=>y(d.model)+y.bandwidth()/2)
-    .attr('r',6).attr('fill',d=>TC[d.type]).attr('stroke','#060e09').attr('stroke-width',1.5)
+    .attr('r',6).attr('fill','#555').attr('stroke','#888').attr('stroke-width',1.5)
     .style('cursor','pointer')
-    .on('mousemove',(e,d)=>{
-      tip.style.opacity=1; tip.style.left=(e.clientX+14)+'px'; tip.style.top=(e.clientY-10)+'px';
-      tip.innerHTML=`<b>${d.model}</b><br>${d.dev} · ${d.type}<br>Wh/100q: ${d.wh100.toFixed(4)}<br>CO₂/100q: ${d.co2_100.toFixed(4)} g<br>💡 LED: ${(d.wh100/10*3600).toFixed(0)}s`;
+    .on('click',(e,d)=>{
+      const secs=Math.round(d.wh100/10*3600);
+      const key=d.model;
+      if(countdowns[key]){ clearInterval(countdowns[key].timer); countdowns[key].label.remove(); delete countdowns[key]; }
+      d3.select(e.currentTarget).attr('fill',TC[d.type]).attr('stroke',TC[d.type]);
+      const cx=+d3.select(e.currentTarget).attr('cx');
+      const cy=+d3.select(e.currentTarget).attr('cy');
+      let remaining=secs;
+      const label=svg.append('text')
+        .attr('x',cx+12).attr('y',cy+4)
+        .attr('fill',TC[d.type]).attr('font-size',10).attr('font-family','Roboto Mono')
+        .text(`${remaining}s`);
+      countdowns[key]={el:e.currentTarget, label,
+        timer:setInterval(()=>{
+          remaining--;
+          label.text(`${remaining}s`);
+          if(remaining<=0){
+            clearInterval(countdowns[key].timer);
+            label.remove();
+            delete countdowns[key];
+            d3.select(e.currentTarget).attr('fill','#333').attr('stroke','#555');
+          }
+        },1000)
+      };
     })
-    .on('mouseleave',()=>tip.style.opacity=0);
+    .on('mouseover',(e,d)=>{
+      const secs=Math.round(d.wh100/10*3600);
+      tip.style.opacity=1; tip.style.left=(e.clientX+14)+'px'; tip.style.top=(e.clientY-10)+'px';
+      tip.innerHTML=`<span style="color:#fff">💡 ${secs}s</span>`;
+    })
+    .on('mouseleave',()=>{ tip.style.opacity=0; });
+
+}
+
+/* ─── SCATTER PLOT ─── */
+function initScatter(models){
+  const top100=[...models].sort((a,b)=>b.co2_100-a.co2_100).slice(0,50);
+  const devs=['all',...new Set(top100.map(d=>d.dev).sort())];
+  const sel=document.getElementById('scatter-dev-filter');
+  devs.forEach(d=>{ if(d==='all') return; const o=document.createElement('option'); o.value=d; o.textContent=d; sel.appendChild(o); });
+
+  function render(filterDev){
+    const data=filterDev==='all'?top100:top100.filter(m=>m.dev===filterDev);
+    const chartWidth=document.getElementById('scatter-chart').clientWidth||800;
+const ySort=["Reasoning","Text","Image","Speech"];
+    const colScale={domain:ySort,range:["#378ADD","#03FFA5","#D85A30","#a57cf7"]};
+    const xAxisCfg={...{labelColor:"rgba(255,255,255,0.742)",titleColor:"rgba(255,255,255,0.742)",gridColor:"rgba(3,255,165,0.05)",labelFont:"Roboto Mono",titleFont:"Roboto Mono",labelFontSize:11,titleFontSize:14},titlePadding:12,tickStep:0.05,format:".2f"};
+    vegaEmbed('#scatter-chart',{
+      $schema:"https://vega.github.io/schema/vega-lite/v5.json",
+      width:chartWidth,height:460,background:"transparent",
+      autosize:{type:"fit",contains:"padding"},padding:{right:40},
+      layer:[
+        {
+          data:{values:data},
+          transform:[{calculate:"random()",as:"jitter"}],
+          mark:{type:"point",size:55,filled:true,opacity:0.75,clip:true},
+          encoding:{
+            x:{field:"co2_100",type:"quantitative",title:"CO₂ per 100 queries (g)",scale:{type:"linear",domainMax:0.65},axis:xAxisCfg},
+            y:{field:"type",type:"nominal",sort:ySort,scale:{domain:ySort,paddingInner:0,paddingOuter:0},title:null,axis:{labelColor:"rgba(255,255,255,0.742)",labelFont:"Roboto Mono",labelFontSize:12}},
+            yOffset:{field:"jitter",type:"quantitative",scale:{domain:[0,1],range:[20,75]}},
+            color:{field:"type",type:"nominal",scale:colScale,legend:null},
+            tooltip:[{field:"model"},{field:"dev"},{field:"co2_100",title:"CO₂/100q (g)",format:".4f"}]
+          }
+        }
+      ],
+      resolve:{axis:{x:"independent",y:"independent"}},
+      config:{view:{stroke:null}}
+    },{actions:false});
+  }
+
+  render('all');
+  sel.addEventListener('change',e=>render(e.target.value));
 }
 
 /* ─── EXPLORE BUBBLE ─── */
-let qMode='100', cidx=0, dragAxis=false, dsx=0, axOff=0;
-let bubbles=[], fired=false, raf=null;
-const IW=128;
+const EXP_COLORS=['#03FFA5','#378ADD','#D85A30','#a57cf7','#FFD21E','#4D6BFE','#C084FC','#39D3C3','#f07094','#FA520F'];
+let expIdx=0, expBubbles=[], expRaf=null;
 let EXP_DATA=[];
-
-function co2for(m){ return qMode==='10'?m.co2_10 : qMode==='1000'?m.co2_1000 : m.co2_100; }
 
 function initExplore(models){
   EXP_DATA=[...models].sort((a,b)=>b.co2_100-a.co2_100).slice(0,10);
-  buildAxis();
+
   const cv=document.getElementById('exp-cv');
   const wr=document.getElementById('exp-wrap');
-  function rsz(){ cv.width=wr.clientWidth; cv.height=wr.clientHeight-72; }
+  function rsz(){ cv.width=wr.clientWidth; cv.height=wr.clientHeight; }
   rsz(); window.addEventListener('resize',rsz);
 
-  cv.addEventListener('click',()=>{ if(!dragAxis) fireBubbles(cidx); });
-  cv.addEventListener('dblclick',e=>{
-    const rc=cv.getBoundingClientRect();
-    bubbles.forEach(b=>{ if(!b.popped&&Math.hypot(b.x-e.clientX+rc.left,b.y-e.clientY+rc.top)<b.r) b.popped=true; });
+  // Build strip cards8
+  const track=document.getElementById('exp-strip-track');
+  EXP_DATA.forEach((m,i)=>{
+    const card=document.createElement('div'); card.className='exp-card';
+    card.innerHTML=`<div class="exp-card-name">${m.model}</div><div class="exp-card-dev">${m.dev}</div>`;
+    card.addEventListener('click',()=>{ expIdx=i; updateExpModel(); });
+    track.appendChild(card);
   });
-  cv.addEventListener('mousemove',e=>{
-    const rc=cv.getBoundingClientRect(), mx=e.clientX-rc.left, my=e.clientY-rc.top;
-    const tip=document.getElementById('gtip');
-    let h=null;
-    bubbles.forEach(b=>{ b.hov=false; if(!b.popped&&Math.hypot(b.x-mx,b.y-my)<b.r){b.hov=true;h=b;} });
-    if(h){
-      tip.style.opacity=1; tip.style.left=(e.clientX+14)+'px'; tip.style.top=(e.clientY-10)+'px';
-      tip.innerHTML=`<b style="color:#03FFA5">1 query</b><br>CO₂: ${h.co2<0.001?h.co2.toExponential(3):h.co2.toFixed(5)} g`;
-    } else tip.style.opacity=0;
-  });
-  cv.addEventListener('mouseleave',()=>{ document.getElementById('gtip').style.opacity=0; });
+
+  document.getElementById('exp-prev').addEventListener('click',()=>{ expIdx=(expIdx-1+EXP_DATA.length)%EXP_DATA.length; updateExpModel(); });
+  document.getElementById('exp-next').addEventListener('click',()=>{ expIdx=(expIdx+1)%EXP_DATA.length; updateExpModel(); });
+  document.getElementById('exp-reset').addEventListener('click',()=>{ expBubbles=[]; });
 
   document.querySelectorAll('.qbtn').forEach(b=>{
-    b.addEventListener('click',function(){
-      document.querySelectorAll('.qbtn').forEach(x=>x.classList.remove('on'));
-      this.classList.add('on'); qMode=this.dataset.q;
-      resetB(); updateInfo(); updateHL();
-    });
+    b.addEventListener('click',function(){ expFireBubbles(expIdx, parseInt(this.dataset.q)); });
   });
-  updateHL(); updateInfo();
-  if(!raf) animLoop();
+
+  updateExpModel();
+  if(!expRaf) expAnimLoop();
 }
 
-function buildAxis(){
-  const ax=document.getElementById('m-axis'); ax.innerHTML='';
-  const mc=Math.max(...EXP_DATA.map(m=>m.co2_100));
-  EXP_DATA.forEach((m,i)=>{
-    const el=document.createElement('div'); el.className='mi';
-    el.innerHTML=`<div class="mn">${m.model}</div><div class="md">${m.dev}</div>
-      <div class="mb"><div class="mbf" style="width:${(m.co2_100/mc*100).toFixed(1)}%"></div></div>`;
-    el.addEventListener('click',()=>{ if(!dragAxis){ snapTo(i,false); setTimeout(()=>fireBubbles(i),380); } });
-    ax.appendChild(el);
+function updateExpModel(){
+  const color=EXP_COLORS[expIdx];
+  const cards=document.querySelectorAll('.exp-card');
+  cards.forEach((c,i)=>{
+    const isCen=i===expIdx;
+    c.classList.toggle('cen',isCen);
+    c.style.borderColor= isCen ? color : 'transparent';
+    c.querySelector('.exp-card-name').style.color= isCen ? color : '';
   });
-  ax.addEventListener('mousedown',e=>{ dragAxis=false; dsx=e.clientX; });
-  ax.addEventListener('mousemove',e=>{
-    if(!(e.buttons&1)) return;
-    if(Math.abs(e.clientX-dsx)>4) dragAxis=true;
-    axOff+=e.movementX; clamp(); applyOff();
-  });
-  ax.addEventListener('mouseup',()=>{ setTimeout(()=>dragAxis=false,50); snap(); });
-  ax.addEventListener('touchstart',e=>{ dsx=e.touches[0].clientX; dragAxis=false; },{passive:true});
-  ax.addEventListener('touchmove',e=>{ dragAxis=true; axOff+=e.touches[0].clientX-dsx; dsx=e.touches[0].clientX; clamp(); applyOff(); },{passive:true});
-  ax.addEventListener('touchend',()=>snap());
-  snapTo(0,true);
+  // slide track so center card is centered in viewport
+  const vp=document.getElementById('exp-strip-viewport');
+  const cardW=148; // card width + gap
+  const offset=vp.clientWidth/2 - expIdx*cardW - cardW/2;
+  document.getElementById('exp-strip-track').style.transform=`translateX(${offset}px)`;
 }
 
-function clamp(){
-  const aw=document.getElementById('m-axis').parentElement.clientWidth;
-  axOff=Math.max(aw/2-EXP_DATA.length*IW+IW/2, Math.min(aw/2-IW/2, axOff));
-}
-function applyOff(){
-  const ax=document.getElementById('m-axis'); ax.style.transform=`translateX(${axOff}px)`;
-  const aw=ax.parentElement.clientWidth;
-  let best=0, bd=Infinity;
-  EXP_DATA.forEach((_,i)=>{ const d=Math.abs(axOff+(i+.5)*IW-aw/2); if(d<bd){bd=d;best=i;} });
-  if(best!==cidx){ cidx=best; updateHL(); updateInfo(); resetB(); }
-}
-function snap(){ snapTo(cidx,false); }
-function snapTo(i,imm){
-  const aw=document.getElementById('m-axis').parentElement.clientWidth;
-  axOff=aw/2-(i+.5)*IW; clamp();
-  const ax=document.getElementById('m-axis');
-  if(imm){ ax.style.transform=`translateX(${axOff}px)`; }
-  else { ax.style.transition='transform .32s cubic-bezier(.4,0,.2,1)'; ax.style.transform=`translateX(${axOff}px)`; setTimeout(()=>ax.style.transition='',340); }
-  cidx=i; updateHL(); updateInfo();
-}
-function updateHL(){
-  document.querySelectorAll('.mi').forEach((el,i)=>{
-    el.classList.toggle('cen',i===cidx);
-    el.style.opacity=Math.abs(i-cidx)>3?'0.28':i===cidx?'1':'0.55';
-  });
-  const cl=document.getElementById('clabel'); cl.textContent=EXP_DATA[cidx].model; cl.style.opacity='1';
-}
-function updateInfo(){
-  const m=EXP_DATA[cidx], q=parseInt(qMode), co2=co2for(m);
-  document.getElementById('q-info').textContent=`${m.model} · ${q} queries · CO₂: ${co2.toFixed(4)} g`;
-}
-function resetB(){ bubbles=[]; fired=false; document.getElementById('empty-st').style.opacity='1'; }
-function fireBubbles(i){
-  cidx=i; snapTo(i,false);
+function expFireBubbles(idx, queryCount){
   const cv=document.getElementById('exp-cv'), W=cv.width, H=cv.height;
-  const m=EXP_DATA[i], co2t=co2for(m), MAXB=Math.min(parseInt(qMode),100), co2b=co2t/MAXB;
-  const rS=d3.scaleSqrt().domain([0,Math.max(...EXP_DATA.map(d=>co2for(d)))/MAXB]).range([4,32]);
-  fired=true; document.getElementById('empty-st').style.opacity='0'; bubbles=[];
+  const m=EXP_DATA[idx], color=EXP_COLORS[idx];
+  const co2PerQuery=m.co2_100/100;
+  const MAXB=queryCount<=10?queryCount:queryCount<=100?Math.min(queryCount,60):80;
+  const queriesPerBubble=queryCount/MAXB;
+  const co2PerBubble=co2PerQuery*queriesPerBubble;
+  const maxCo2=Math.max(...EXP_DATA.map(d=>d.co2_100/100))*10;
+  const rS=d3.scaleSqrt().domain([0,maxCo2]).range([5,36]);
+  const r=Math.max(5,rS(co2PerBubble));
   for(let k=0;k<MAXB;k++){
-    bubbles.push({x:W/2+(Math.random()-.5)*50, y:H+8, vx:(Math.random()-.5)*1.2, vy:-(1.7+Math.random()*1.8),
-      r:Math.max(4,rS(co2b)), co2:co2b, alpha:0, born:Date.now()+k*50, popped:false, popT:0, hov:false});
+    expBubbles.push({
+      x:W*(0.15+Math.random()*0.7), y:H-r-2,
+      vx:(Math.random()-.5)*1.4, vy:-(1.8+Math.random()*1.8),
+      r, color, co2:co2PerBubble,
+      alpha:0, born:Date.now()+k*35
+    });
   }
 }
-function animLoop(){
-  raf=requestAnimationFrame(animLoop);
+
+function expAnimLoop(){
+  expRaf=requestAnimationFrame(expAnimLoop);
   const cv=document.getElementById('exp-cv'); if(!cv) return;
   const ctx=cv.getContext('2d'), W=cv.width, H=cv.height;
   ctx.clearRect(0,0,W,H);
-  if(!fired) return;
   const now=Date.now();
-  bubbles.forEach(b=>{
+  expBubbles.forEach(b=>{
     if(now<b.born) return;
-    if(b.popped){
-      b.popT+=.07;
-      if(b.popT<1){ ctx.save(); ctx.globalAlpha=(1-b.popT)*.5; ctx.strokeStyle='rgba(3,255,165,0.7)'; ctx.lineWidth=1; ctx.beginPath(); ctx.arc(b.x,b.y,b.r*(1+b.popT*.9),0,Math.PI*2); ctx.stroke(); ctx.restore(); }
-      return;
-    }
-    b.x+=b.vx; b.y+=b.vy; b.vy-=.012; b.vx*=.999;
-    b.alpha=Math.min(1,(now-b.born)/300);
-    if(b.x-b.r<0){b.x=b.r;b.vx=Math.abs(b.vx)*.5;}
-    if(b.x+b.r>W){b.x=W-b.r;b.vx=-Math.abs(b.vx)*.5;}
-    if(b.y+b.r<-20){b.popped=true;return;}
-    bubbles.forEach(b2=>{
-      if(b===b2||b2.popped||now<b2.born) return;
-      const dx=b.x-b2.x, dy=b.y-b2.y, d=Math.hypot(dx,dy), md=b.r+b2.r+2;
-      if(d<md&&d>0){const f=(md-d)/md*.05; b.vx+=dx/d*f; b.vy+=dy/d*f;}
+    // gentle upward buoyancy + damping
+    b.vy-=.008; b.vx*=.998; b.vy*=.998;
+    b.x+=b.vx; b.y+=b.vy;
+    b.alpha=Math.min(1,(now-b.born)/400);
+    // bounce all 4 walls
+    if(b.x-b.r<0){b.x=b.r; b.vx=Math.abs(b.vx)*.55;}
+    if(b.x+b.r>W){b.x=W-b.r; b.vx=-Math.abs(b.vx)*.55;}
+    if(b.y-b.r<0){b.y=b.r; b.vy=Math.abs(b.vy)*.45;}
+    if(b.y+b.r>H){b.y=H-b.r; b.vy=-Math.abs(b.vy)*.55;}
+    // collision
+    expBubbles.forEach(b2=>{
+      if(b===b2||now<b2.born) return;
+      const dx=b.x-b2.x, dy=b.y-b2.y, dist=Math.hypot(dx,dy), md=b.r+b2.r+2;
+      if(dist<md&&dist>0){const f=(md-dist)/md*.05; b.vx+=dx/dist*f; b.vy+=dy/dist*f;}
     });
-    ctx.save(); ctx.globalAlpha=b.alpha*.82;
-    const gd=ctx.createRadialGradient(b.x-b.r*.3,b.y-b.r*.3,b.r*.06,b.x,b.y,b.r);
-    gd.addColorStop(0,'rgba(3,255,165,0.18)'); gd.addColorStop(.7,'rgba(3,255,165,0.05)'); gd.addColorStop(1,'rgba(3,255,165,0.01)');
+    // draw
+    ctx.save(); ctx.globalAlpha=b.alpha*.85;
+    const gd=ctx.createRadialGradient(b.x-b.r*.3,b.y-b.r*.3,b.r*.05,b.x,b.y,b.r);
+    gd.addColorStop(0,b.color+'2a'); gd.addColorStop(.65,b.color+'0d'); gd.addColorStop(1,b.color+'04');
     ctx.fillStyle=gd; ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle=b.hov?'rgba(3,255,165,0.9)':'rgba(3,255,165,0.38)'; ctx.lineWidth=b.hov?1.8:.8;
+    ctx.strokeStyle=b.color+'88'; ctx.lineWidth=.9;
     ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.stroke();
-    ctx.globalAlpha=b.alpha*.18; ctx.fillStyle='rgba(255,255,255,0.8)';
-    ctx.beginPath(); ctx.arc(b.x-b.r*.3,b.y-b.r*.32,b.r*.18,0,Math.PI*2); ctx.fill();
-    if(b.r>13){ctx.globalAlpha=b.alpha*.75; ctx.fillStyle='rgba(3,255,165,0.85)'; ctx.font=`400 ${Math.max(6,b.r*.26)}px Roboto Mono,monospace`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(b.co2<0.001?b.co2.toExponential(1):b.co2.toFixed(3)+'g',b.x,b.y);}
+    ctx.globalAlpha=b.alpha*.18; ctx.fillStyle='rgba(255,255,255,0.9)';
+    ctx.beginPath(); ctx.arc(b.x-b.r*.28,b.y-b.r*.3,b.r*.17,0,Math.PI*2); ctx.fill();
+    if(b.r>13){
+      ctx.globalAlpha=b.alpha*.8; ctx.fillStyle=b.color;
+      ctx.font=`400 ${Math.max(7,b.r*.27)}px Roboto Mono,monospace`;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(b.co2<0.001?b.co2.toExponential(1):b.co2.toFixed(3)+'g',b.x,b.y);
+    }
     ctx.restore();
   });
 }
@@ -547,12 +610,12 @@ window.addEventListener('DOMContentLoaded',()=>{
     }
     const globeDevs=Object.values(devMap).map(d=>({
       ...d, rgb: DC[d.name] ? hexToRgbArr(DC[d.name]) : [160,200,175]
-    }));
+    })).sort((a,b)=>b.models-a.models).slice(0,30);
     initGlobe(globeDevs);
     initExplore(models);
-    // initLollipop(models);
+    initLollipop(models);
     const ck=setInterval(()=>{
-      if(typeof vegaEmbed!=='undefined'){ clearInterval(ck); initVega(models, global); }
+      if(typeof vegaEmbed!=='undefined'){ clearInterval(ck); initVega(models, global); initScatter(models); }
     },80);
   }).catch(err=>{
     showChartError('CSV load error: '+err+' (this often happens with file:// paths, use a local http:// server).');

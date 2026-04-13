@@ -92,10 +92,18 @@
     <div class="chart-box fi">
       <div class="chart-label">Top 10 highest energy consumption Developer · total Wh per 1,000 queries</div>
       <div id="bar-top10-dev"></div>
+      <div id="dev-drill" style="display:none;margin-top:18px;border-top:1px solid rgba(3,255,165,0.15);padding-top:14px">
+        <div id="dev-drill-label" style="font-family:'Roboto Mono',monospace;font-size:12px;color:#03FFA5;margin-bottom:8px;letter-spacing:.04em"></div>
+        <div id="dev-drill-chart"></div>
+      </div>
     </div>
     </br>
     <p class="body fi" style="margin:16px 0;">The bar chart zooms into individual models, where all top 10 are Reasoning-type: EXAONE 4.0 32B consumes nearly double the energy 
-        of the second-place SmolLM3 3B, confirming that chain-of-thought reasoning is the single biggest driver of AI energy cost.</p>
+        of the second-place SmolLM3 3B, confirming that chain-of-thought reasoning is the single biggest driver of AI energy cost. Some AI models can be set to "think" at 
+        different depths before giving an answer. This internal thinking process is called chain-of-thought reasoning, and the amount of thinking allowed is called the thinking budget.
+Low — the model thinks briefly before answering. Least energy used.
+Medium — the model thinks more carefully. Moderate energy.
+High — the model thinks extensively, checking and verifying its logic before responding. Most energy used.</p>
     <div class="chart-box fi">
       <div class="chart-label">Top 10 highest energy consumption models · Wh per 1,000 queries</div>
       <div id="bar-top10"></div>
@@ -103,7 +111,7 @@
 
 
     <!-- LED Section -->
-    <h2 class="fi" style="margin-top:64px;font-size:clamp(22px,3vw,38px)">Did you know how long<br>1,000 AI queries could<br><em>power your LED?</em></h2>
+    <h2 class="fi" style="margin-top:64px;font-size:clamp(22px,3vw,38px)">Did you know how long<br>1,00 AI queries could<br><em>power your LED?</em></h2>
     <p class="body fi">One way to make Wh tangible: a 10W LED bulb. Dividing energy by 10W gives seconds of continuous light equivalent to that AI workload.</p>
 
     <div class="fbox fi">
@@ -132,17 +140,17 @@
 
     <!-- AI Model Library strip plot -->
     <h2 class="fi" style="margin-top:64px;font-size:clamp(22px,3vw,38px)">AI Model Library:<br><em>Explore Energy & CO₂</em></h2>
-    <p class="body fi">All 206 benchmarked models on a log scale. CO₂ spans 5 orders of magnitude. Use the type legend to orient yourself. Hover any dot for details.</p>
+    <p class="body fi">Top 50 highest CO₂ models per 100 queries. Use the developer filter to explore by company. Hover any dot for details.</p>
 
-    <div class="trow fi">
-      <span class="tp"><span class="td" style="background:#378ADD"></span>Reasoning</span>
-      <span class="tp"><span class="td" style="background:var(--g)"></span>Text</span>
-      <span class="tp"><span class="td" style="background:#D85A30"></span>Image</span>
-      <span class="tp"><span class="td" style="background:#a57cf7"></span>Speech</span>
-    </div>
-    <div class="chart-box fi">
-      <div class="chart-label">206 models · CO₂ per 100 queries · log scale · each dot = one model</div>
-      <!-- <div id="strip-plot"></div> -->
+    <div class="chart-box fi" style="margin-top:32px">
+      <div class="chart-label">Top 100 models · CO₂ per 1,000 queries · by type</div>
+      <div style="margin:10px 0 6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <span style="font-family:Roboto Mono;font-size:11px;color:rgba(255,255,255,0.742);margin-right:4px">Developer:</span>
+        <select id="scatter-dev-filter" style="background:#0b1510;color:rgba(255,255,255,0.742);border:1px solid rgba(3,255,165,0.25);font-family:Roboto Mono;font-size:11px;padding:3px 8px;border-radius:3px">
+          <option value="all">All</option>
+        </select>
+      </div>
+      <div id="scatter-chart" style="margin-top:24px"></div>
     </div>
 
   </div>
@@ -153,26 +161,30 @@
   <div class="inner">
     <div class="sec-tag"><span>03</span>&nbsp;&nbsp;Explore</div>
     <h2 class="fi">What is the environmental<br>impact of your <em>digital habits today?</em></h2>
-    <p class="body fi">Drag the model carousel to center a model. Select a query count. Click anywhere in the canvas — CO₂ bubbles rise. <em style="color:var(--g)">One bubble = one query.</em> Bubble size = CO₂ per query.</p>
-
-    <div class="qrow fi">
-      <div class="qtoggle">
-        <button class="qbtn" data-q="10">10 queries</button>
-        <button class="qbtn on" data-q="100">100 queries</button>
-        <button class="qbtn" data-q="1000">1,000 queries</button>
-      </div>
-      <span id="q-info"></span>
-    </div>
+    <p class="body fi">Select a model, choose a query count, and watch CO₂ bubbles fill the container. Bubble count scales with queries — bubble size reflects CO₂ emitted per query.</p>
 
     <div id="exp-wrap" class="fi">
       <canvas id="exp-cv"></canvas>
-      <!-- <div id="empty-st">
-        <div class="arr">↓</div>
-      </div> -->
-      <div id="clabel"></div>
-      <div class="m-axis" id="m-axis"></div>
     </div>
-    <p class="exp-hint">drag · center · click to fire · double-click a bubble to pop</p>
+
+    <div id="exp-model-strip" class="fi">
+      <button id="exp-prev" class="exp-nav">&#8592;</button>
+      <div id="exp-strip-viewport">
+        <div id="exp-strip-track"></div>
+      </div>
+      <button id="exp-next" class="exp-nav">&#8594;</button>
+    </div>
+
+    <div class="qrow fi">
+      <div class="qtoggle">
+        <button class="qbtn" data-q="1">1</button>
+        <button class="qbtn" data-q="10">10</button>
+        <button class="qbtn" data-q="100">100</button>
+        <button class="qbtn" data-q="1000">1,000</button>
+      </div>
+      <button id="exp-reset" class="exp-reset-btn">Reset</button>
+    </div>
+    <p class="exp-hint">choose queries · click to fire from center model · reset to clear</p>
   </div>
 </section> 
 
