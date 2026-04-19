@@ -6,12 +6,11 @@
 <title>AI Energy & CO₂</title>
 <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
-<!-- D3 v7 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-<!-- Vega / Vega-Lite / Vega-Embed -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/vega/5.30.0/vega.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/vega-lite/5.21.0/vega-lite.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/vega-embed/6.26.0/vega-embed.min.js"></script>
+
 </head>
 <body>
 
@@ -36,18 +35,17 @@
   <div id="sphere-wrap"></div>
   <div class="hero-inner">
     <h1>Every query has a<br><em>carbon cost</em></h1>
-    <p class="hero-sub">206 AI models · 4 task types · NVIDIA H100 80GB<br>Measuring the energy footprint of modern AI inference</p>
+    <p class="hero-sub">4 task types · NVIDIA H100 80GB<br>Measuring the energy footprint of modern AI inference</p>
   </div>
-  <div class="scroll-hint">Scroll to explore</div>
 </section>
 
 <!-- INTRO -->
 <section id="intro">
   <div class="inner">
-    <div class="sec-tag"><span>01</span>&nbsp;&nbsp;Intro</div>
-    <h2 class="fi">Why AI energy<br>demand <em>matters</em></h2>
-    <p class="body fi">The energy required for AI is already a non-trivial part of our lives. AI queries consume a growing share of global data center power — translating directly into carbon emissions and pressure on energy infrastructure globally.</p>
-    <p class="body fi">Raw energy data (Wh per 1,000 queries) comes from the <strong>HuggingFace AIEnergyScore Leaderboard</strong>, measured on NVIDIA H100 GPUs via CodeCarbon. CO₂ is estimated by multiplying Wh by the IEA 2023 global average carbon intensity.</p>
+    <div class="sec-tag"><span>01</span>&nbsp;&nbsp;Introduction</div>
+    <h2 class="section-title fi">Why AI energy<br>demand <em>matters</em></h2>
+    <p class="body fi">Every time you send a message to an AI, a physical server somewhere draws electricity to process your request. That electricity comes from the power grid and depending on where the data center is located, it may come from coal, gas, or renewables. The carbon cost is real, even if invisible.</p>
+    <p class="body fi">AI's energy demand is growing rapidly as models become more complex and widespread. Understanding that demand is the first step toward making informed choices about how we use AI and how we can mitigate its environmental impact.</p>
   </div>
 </section>
 
@@ -57,93 +55,102 @@
     <div class="sec-tag"><span>02</span>&nbsp;&nbsp;Visualization</div>
 
     <!-- Global Demand -->
-    <h2 class="fi">Global Data Center Electricity<br><em>AI vs Non-AI</em></h2>
-    <p class="body fi">AI-optimized servers consumed 80 TWh in 2024 (19%) and 93 TWh in 2025 (21%). By 2030 the share is projected to reach 44%. Source: IEA 2025 · Gartner Nov 2025.</p>
-    
-    <div class="stat-strip fi">
-      <div class="stat"><div class="stat-n">80</div><div class="stat-u">TWh</div><div class="stat-u">AI servers share 2024</div></div>
-      <div class="stat"><div class="stat-n">93</div><div class="stat-u">TWh</div><div class="stat-u">AI servers share 2025</div></div>
-      <div class="stat"><div class="stat-n">432</div><div class="stat-u">TWh</div><div class="stat-u">Predict AI servers share 2030</div></div>
-
-    </div>
+    <h2 class="section-title fi">Global Data Center Electricity<br><em>AI vs the Rest</em></h2>
+    <p class="body fi">Data centers are among the fastest growing electricity consumers in the world. In 2024, global data centers used 415 TWh in total and AI optimized servers accounted for 80 TWh, which is 19% of that total. By 2025 that share had grown to 93 TWh. By 2030, AI servers alone are projected to consume 432 TWh, nearly 44% of all data center electricity.</p>
+<div class="stat-strip fi">
+  <div class="stat">
+    <div class="stat-n">80</div>
+    <div class="stat-u">TWh</div>
+    <div class="stat-l">AI SERVERS ELECTRICITY <em>2024</em></div>
+  </div>
+  <div class="stat">
+    <div class="stat-n">93</div>
+    <div class="stat-u">TWh</div>
+    <div class="stat-l">AI SERVERS ELECTRICITY <em>2025</em></div>
+  </div>
+  <div class="stat">
+    <div class="stat-n">432</div>
+    <div class="stat-u">TWh</div>
+    <div class="stat-l">PROJECTED AI SHARE BY <em>2030</em></div>
+  </div>
+</div>
     <div class="pie-row fi">
       <div class="pie-card">
-        <div class="chart-label">2024 — 415 TWh total</div>
         <div id="pie-2024" style="min-height:220px;position:relative;"></div>
         <div class="trow" style="margin-top:12px">
-          <span class="tp"><span class="td" style="background:var(--g)"></span>AI servers — 80 TWh (19%)</span>
-          <span class="tp"><span class="td" style="background:#122018;border:1px solid #1e2e24"></span>Rest — 335 TWh</span>
+          <span class="tp"><span class="td" style="background:var(--g)"></span>AI servers</span>
+          <span class="tp"><span class="td" style="background:#122018;border:1px solid #1e2e24"></span>Rest</span>
         </div>
       </div>
       <div class="pie-card">
-        <div class="chart-label">2025 — 448 TWh total</div>
         <div id="pie-2025" style="min-height:220px;position:relative;"></div>
         <div class="trow" style="margin-top:12px">
-          <span class="tp"><span class="td" style="background:var(--g)"></span>AI servers — 93 TWh (21%)</span>
-          <span class="tp"><span class="td" style="background:#122018;border:1px solid #1e2e24"></span>Rest — 355 TWh</span>
+          <span class="tp"><span class="td" style="background:var(--g)"></span>AI servers</span>
+          <span class="tp"><span class="td" style="background:#122018;border:1px solid #1e2e24"></span>Rest</span>
         </div>
       </div>
     </div>
 
     <!-- Giants -->
-    <h2 class="fi" style="margin-top:64px;font-size:clamp(22px,3vw,38px)">Energy Consumption:<br><em>Powering the Giants</em></h2>
-    <p class="body fi">Top 10 highest energy consumption AI models per 1,000 queries. Reasoning-mode models dominate entirely — EXAONE 4.0 32B leads at 18.99 Wh/1k queries.</p>
+    <h2 class="section-title fi">Energy Consumption:<br><em>Powering the Giants</em></h2>
+    <p class="body fi">The bar chart ranks the 10 highest energy developers by combining the Wh across all their benchmarked models. OpenAI leads by a wide margin because it has the most models in the dataset.</p>
 
     <div class="chart-box fi">
-      <div class="chart-label">Top 10 highest energy consumption Developer · total Wh per 1,000 queries</div>
+      <div class="chart-label">Top 10 Developers by Total Energy · Wh per 1,000 Queries</div>
       <div id="bar-top10-dev"></div>
       <div id="dev-drill" style="display:none;margin-top:18px;border-top:1px solid rgba(3,255,165,0.15);padding-top:14px">
         <div id="dev-drill-label" style="font-family:'Roboto Mono',monospace;font-size:12px;color:#03FFA5;margin-bottom:8px;letter-spacing:.04em"></div>
         <div id="dev-drill-chart"></div>
       </div>
     </div>
-    </br>
-    <p class="body fi" style="margin:16px 0;">The bar chart zooms into individual models, where all top 10 are Reasoning-type: EXAONE 4.0 32B consumes nearly double the energy 
-        of the second-place SmolLM3 3B, confirming that chain-of-thought reasoning is the single biggest driver of AI energy cost. Some AI models can be set to "think" at 
-        different depths before giving an answer. This internal thinking process is called chain-of-thought reasoning, and the amount of thinking allowed is called the thinking budget.
-Low — the model thinks briefly before answering. Least energy used.
-Medium — the model thinks more carefully. Moderate energy.
-High — the model thinks extensively, checking and verifying its logic before responding. Most energy used.</p>
+
+    <p class="body fi" style="margin:28px 0 8px;">The chart below zooms into individual models and reveals that all top 10 are Reasoning type. This is not a coincidence. Some AI models can be configured to think at different depths before giving an answer. This process is called chain of thought reasoning and the amount of thinking allowed is called the thinking budget.</p>
+
+    <p class="body fi" style="margin-bottom:6px;"><strong style="color:var(--g)">Low</strong> — the model answers quickly with minimal deliberation. Least energy used.</p>
+    <p class="body fi" style="margin-bottom:6px;"><strong style="color:var(--g)">Medium</strong> — the model considers the problem more carefully. Moderate energy.</p>
+    <p class="body fi" style="margin-bottom:6px;"><strong style="color:var(--g)">High</strong> — the model deliberates extensively, verifying its logic before responding. Most energy.</p>
+
     <div class="chart-box fi">
-      <div class="chart-label">Top 10 highest energy consumption models · Wh per 1,000 queries</div>
+      <div class="chart-label">Top 10 Highest Energy Models · Wh per 1,000 Queries</div>
       <div id="bar-top10"></div>
     </div>
 
-
     <!-- LED Section -->
-    <h2 class="fi" style="margin-top:64px;font-size:clamp(22px,3vw,38px)">Did you know how long<br>1,00 AI queries could<br><em>power your LED?</em></h2>
-    <p class="body fi">One way to make Wh tangible: a 10W LED bulb. Dividing energy by 10W gives seconds of continuous light equivalent to that AI workload.</p>
+    <h2 class="section-title fi">How long could 1000 AI queries<br><em>power your LED?</em></h2>
+    <p class="body fi">Watt(Wh) is an abstract unit for most people. One way to make it tangible is to compare it to a standard 10W LED bulb, which consumes 10 Wh per hour. Dividing a model's energy by 10W gives the number of seconds that same energy could keep a LED lit. Click any dot in the chart below to start a live countdown and watch the light run out.</p>
 
     <div class="fbox fi">
       <div class="fbox-label">LED equivalent formula</div>
-      <div class="fbox-eq">Wh ÷ 10W × 3,600 = seconds</div>
-      <div class="fbox-note">EXAONE 4.0 32B / 1,000 queries → 18.99 Wh → <strong style="color:var(--g)">6,837 seconds ≈ 1.9 hours</strong> of a 10W LED</div>
+      <div class="fbox-eq">Wh ÷ 10W × 3,600 = seconds of light</div>
     </div>
 
     <div class="chart-box fi" style="margin-top:20px">
-      <div class="chart-label">Top 10 models · energy per 100 queries (Wh) · click dot for LED time</div>
+      <div class="chart-label">Top 20 Models · Energy per 1000 Queries (Wh)</div>
       <div id="lollipop-chart" class="lollipop-wrap"></div>
     </div>
 
-    <!-- Invisible Link + Formulas -->
-    <h2 class="fi" style="margin-top:64px;font-size:clamp(22px,3vw,38px)">The Invisible Link:<br><em>From Math to Emissions</em></h2>
-    <p class="body fi">Every time you ask an AI to write an email or debug code, it performs with real infrastructure. These calculations require physical electricity to power the processors. The relationship is simple: Energy is the input, and CO₂ is the consequence.</p>
-    <p class="body fi">Reasoning models carry a heavier environmental price tag because they think "longer" — generating extended chain-of-thought token sequences that can consume 150–700× more energy than standard inference on identical hardware.</p>
+    <!-- Invisible Link -->
+    <h2 class="section-title fi">The Invisible Link:<br><em>From Math to Emissions</em></h2>
+    <p class="body fi">CO₂ is never measured directly. It is estimated by multiplying energy by the carbon intensity of the electricity grid. Reasoning models carry a much heavier environmental cost than standard models because chain of thought inference generates hundreds to thousands of additional tokens internally before producing a visible response, consuming 150 to 700 times more energy on the same hardware.</p>
 
     <div class="fi">
+    
+   
       <div class="fbox">
-        <div class="fbox-label">CO₂ estimation formula</div>
-        <div class="fbox-eq">Wh × 0.417 g/Wh = CO₂ (grams)</div>
-        <div class="fbox-note">IEA 2023 global average grid carbon intensity · varies ≈35× by region (Norway ≈0.012 vs Poland ≈0.70 g/Wh)<br>This is an <strong style="color:#E9A800">estimation</strong> — not a directly measured value.</div>
+        <div class="fbox-label"> CO₂ Estimation (derived, not measured)</div>
+        <div class="fbox-eq">CO₂ = Wh × 0.417 g/Wh</div>
+        <div class="fbox-warn">⚠ This is an estimation, not a directly measured value.</div>
       </div>
     </div>
 
-    <!-- AI Model Library strip plot -->
-    <h2 class="fi" style="margin-top:64px;font-size:clamp(22px,3vw,38px)">AI Model Library:<br><em>Explore Energy & CO₂</em></h2>
-    <p class="body fi">Top 50 highest CO₂ models per 100 queries. Use the developer filter to explore by company. Hover any dot for details.</p>
-
+    <!-- Scatter -->
+    <h2 class="section-title fi">AI Model Library:<br><em>Explore Energy and CO₂ Emissions</em></h2>
+    <p class="body fi">Every query sent to an AI model consumes electricity—and every watt consumed leaves a carbon trace. Most developers spread their work across multiple task types. A single company might maintain text models, image generators, reasoning engines, and speech tools all at once. 
+      Meanwhile, different models performing the exact same task can consume vastly different amounts of energy depending on who built them. Filter by developer to inspect one company's full lineup. You can see which task types they prioritize most, and identify which models and task types release the most CO₂ and create the greatest environmental impact.
+</p>
+<p class="body fi">This scatter plot maps 100 models across four task types (<strong>reasoning, text, image, and speech</strong>), plotting each one by its carbon cost per 1,000 queries. </p>
     <div class="chart-box fi" style="margin-top:32px">
-      <div class="chart-label">Top 100 models · CO₂ per 1,000 queries · by type</div>
+      <div class="chart-label">Top 100 Models · CO₂ per 1,000 Queries </div>
       <div style="margin:10px 0 6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <span style="font-family:Roboto Mono;font-size:11px;color:rgba(255,255,255,0.742);margin-right:4px">Developer:</span>
         <select id="scatter-dev-filter" style="background:#0b1510;color:rgba(255,255,255,0.742);border:1px solid rgba(3,255,165,0.25);font-family:Roboto Mono;font-size:11px;padding:3px 8px;border-radius:3px">
@@ -160,59 +167,47 @@ High — the model thinks extensively, checking and verifying its logic before r
 <section id="explore" style="padding-bottom:0">
   <div class="inner">
     <div class="sec-tag"><span>03</span>&nbsp;&nbsp;Explore</div>
-    <h2 class="fi">What is the environmental<br>impact of your <em>digital habits today?</em></h2>
-    <p class="body fi">Select a model, choose a query count, and watch CO₂ bubbles fill the container. Bubble count scales with queries — bubble size reflects CO₂ emitted per query.</p>
+    <h2 class="section-title fi">What is the environmental<br>impact of your <em>digital habits today?</em></h2>
+    <p class="body fi">Every time you ask ChatGPT a quick question, whisper a prompt to Claude, or generate an image with Midjourney, a small puff of carbon enters the atmosphere. Here, you can see those puffs accumulate in real-time.
+Simulate your daily routine: Send 1 query , 10 , 100, or 1,000.</p>
+    <p class="body fi">Watch as bubbles rise and fill the container. Each one representing the invisible CO₂ cost of that interaction. The bigger the bubble, the heavier the emission.</p>
 
     <div id="exp-wrap" class="fi">
       <canvas id="exp-cv"></canvas>
     </div>
 
-    <div id="exp-model-strip" class="fi">
-      <button id="exp-prev" class="exp-nav">&#8592;</button>
-      <div id="exp-strip-viewport">
-        <div id="exp-strip-track"></div>
-      </div>
-      <button id="exp-next" class="exp-nav">&#8594;</button>
-    </div>
+  
 
-    <div class="qrow fi">
-      <div class="qtoggle">
-        <button class="qbtn" data-q="1">1</button>
-        <button class="qbtn" data-q="10">10</button>
-        <button class="qbtn" data-q="100">100</button>
-        <button class="qbtn" data-q="1000">1,000</button>
-      </div>
-      <button id="exp-reset" class="exp-reset-btn">Reset</button>
-    </div>
-    <p class="exp-hint">choose queries · click to fire from center model · reset to clear</p>
+   
   </div>
-</section> 
+</section>
 
 <!-- CONCLUSION -->
 <section id="conclusion">
   <div class="inner">
     <div class="sec-tag"><span>04</span>&nbsp;&nbsp;Conclusion</div>
-    <h2 class="fi">Key <em>findings</em></h2>
+    <h2 class="section-title fi">Key <em>findings</em></h2>
+    <p class="body fi">AI is growing faster than most people realize, and so is its electricity bill. Most of that cost is invisible to the people generating it. Every conversation, every query, every generated image draws power and emits carbon, 
+      but users rarely think about the environmental weight of a single interaction.</p>
+    <p class="body fi">The charts reveal several patterns worth paying attention to. Even within the same task category, energy consumption can vary enormously depending on which developer built the model and how it was architected. Two reasoning models can sit at opposite ends of the carbon scale. Some models offer low, medium, and high thinking modes that match energy use to problem complexity, but many users reach for the most powerful setting regardless of what the task actually requires. Developer strategies also differ widely: some companies release dozens of models spanning multiple task types, while others put nearly all their usage into a single model at massive scale. None of this means AI should be avoided, but recognizing that model choice, task type, and thinking depth all carry real environmental costs is the first step toward using these tools more deliberately.</p>
+
     <div class="chart-box fi">
       <div class="chart-label">Data sources</div>
       <div style="display:flex;flex-direction:column;gap:12px;font-size:10px;color:var(--td);line-height:1.8">
-        <div><span style="color:var(--g)">Wh/1k queries:</span> HuggingFace AIEnergyScore Leaderboard · huggingface.co/spaces/AIEnergyScore/Leaderboard · Feb + Dec 2025 cohorts · 206 models</div>
-        <div><span style="color:var(--g)">2024 DC totals:</span> IEA Energy and AI Report 2025 · iea.org/reports/energy-and-ai · 415 TWh total · 80 TWh AI servers</div>
-        <div><span style="color:var(--g)">2025 AI share:</span> Gartner Press Release, November 2025 · 448 TWh total · 93 TWh AI servers</div>
-        <div><span style="color:var(--g)">CO₂ intensity:</span> IEA 2023 Global Average Grid Carbon Intensity · 0.417 g CO₂/Wh</div>
+        <div><span style="color:var(--g)">Data Source</span> HuggingFace AIEnergyScore Leaderboard · huggingface.co/spaces/AIEnergyScore/Leaderboard · Feb and Dec 2025 cohorts · 206 models</div>
+        <div><span style="color:var(--g)">2024 and 2025 AI share totals:</span> IEA Energy and AI Report 2025 · iea.org/reports/energy-and-ai · 415 TWh total · 80 TWh AI servers</div>
+        <div><span style="color:var(--g)">CO₂ intensity:</span> IEA 2025 Global Average Grid Carbon Intensity · https://www.iea.org/reports/electricity-2025/emissions</div>
       </div>
     </div>
   </div>
 </section>
 
 <footer>
-  <span>CMPT 767 · Data Visualization · SFU · 2026</span>
-  <span><em>AI Energy & CO₂</em> · D3 + Vega-Lite </span>
-</footer> 
+  <span>IAT 335 · Data Visualization · SFU · 2026</span>
+  <span><em>AI Energy & CO₂</em> · D3 + Vega-Lite</span>
+</footer>
 
-  
 <script src="main.js"></script>
-
 
 </body>
 </html>
