@@ -1,6 +1,6 @@
 /* main.js — loads ai_model.csv and global_dc.csv via d3.csv() */
 
-const TC = {Reasoning:"#378ADD", Text:"#03FFA5", Image:"#D85A30", Speech:"#a57cf7"};
+const TC = {Reasoning:"#378ADD", Text:"#FFD21E", Image:"#D85A30", Speech:"#a57cf7"};
 const DC = {
   OpenAI:"#10A37F",         Meta:"#0082FB",           Google:"#4285F4",
   Microsoft:"#00A4EF",      HuggingFace:"#FFD21E",    Alibaba:"#FF6A00",
@@ -92,8 +92,6 @@ function initGlobe(devs){
       const rank=[...devs].sort((a,b2)=>b2.maxCo2-a.maxCo2).findIndex(x=>x.name===d.name)+1;
       tt.innerHTML=`<div class="gtt-name"><span class="gtt-dot" style="background:rgb(${r},${g},${b})"></span>${d.name}</div>
         <div class="gtt-row"><span class="gtt-label">Models Number</span><span class="gtt-val">${d.models}</span></div>
-        <div class="gtt-row"><span class="gtt-label">Wh/1,000 queries</span><span class="gtt-val">${d.maxWh1k.toFixed(4)} Wh</span></div>
-        <div class="gtt-row"><span class="gtt-label">CO₂/1,000 queries</span><span class="gtt-val">${(d.maxCo2*10).toFixed(4)} g</span></div>
         <div class="gtt-row"><span class="gtt-label">CO₂ rank</span><span class="gtt-val">#${rank} / ${devs.length}</span></div>`;
       const rect=el.getBoundingClientRect();
       let tx=rect.right+10, ty=rect.top-10;
@@ -187,7 +185,7 @@ function initVega(models, global){
   
   const cfg={view:{stroke:null},font:"Roboto Mono"};
 
-  const typeColors=["#378ADD","#03FFA5","#D85A30","#a57cf7"];
+  const typeColors=["#378ADD","#FFD21E","#D85A30","#a57cf7"];
   const typeDomain=["Reasoning","Text","Image","Speech"];
 
   let g2024 = global.find(g=>g.year===2024);
@@ -349,10 +347,41 @@ function initVega(models, global){
       label.style.letterSpacing="0.04em";
       drill.style.display='block';
 
-      vegaEmbed('#dev-drill-chart',{
-        $schema:"https://vega.github.io/schema/vega-lite/v5.json",
-        data:{values:devModels},
-        width:drillWidth, background:"transparent", autosize:{type:"fit",contains:"padding"}, padding:{right:1},
+     result.view.addEventListener('click',(_,item)=>{
+  if(!item||!item.datum) return;
+  const d=item.datum;
+  if(!d.isTop3) return;
+  const drill=document.getElementById('dev-drill');
+  const label=document.getElementById('dev-drill-label');
+  if(activeDev===d.dev){ activeDev=null; drill.style.display='none'; return; }
+  activeDev=d.dev;
+  
+  // 先过滤，再按 model 去重（保留最高 wh1k）
+  const devModelsRaw=models.filter(m=>m.dev===d.dev);
+  const devModelMap={};
+  devModelsRaw.forEach(m=>{
+    if(!devModelMap[m.model]||m.wh1k>devModelMap[m.model].wh1k) devModelMap[m.model]=m;
+  });
+  const devModels=Object.values(devModelMap);
+  
+  const modelMax2=Math.ceil(Math.max(...devModels.map(m=>m.wh1k)));
+  const drillWidth=Math.min(chartWidth, document.getElementById('bar-top10-dev').clientWidth||chartWidth);
+  
+  label.textContent=`↳ ${d.dev} — ${devModels.length} models · Wh per 1,000 queries (click to close)`;
+  label.style.fontFamily="Roboto Mono";
+  label.style.fontSize="12px";
+  label.style.letterSpacing="0.04em";
+  drill.style.display='block';
+
+  vegaEmbed('#dev-drill-chart',{
+    $schema:"https://vega.github.io/schema/vega-lite/v5.json",
+    data:{values:devModels},
+    width:drillWidth, 
+    background:"transparent", 
+    autosize:{type:"fit",contains:"padding"}, 
+    padding:{right:80},
+    layer:[
+      {
         mark:{type:"bar", cornerRadiusEnd:3, size:18},
         encoding:{
           x:{
@@ -397,13 +426,32 @@ function initVega(models, global){
             }
           },
           tooltip:[
-            {field:"model"},
-            {field:"type"},
-            {field:"wh1k", title:"Wh/1000 queries", format:".4f"}
+            {field:"model", title:"Model"},
+            {field:"type", title:"Task Type"},
+            {field:"wh1k", title:"Wh/1000 queries", format:".3f"}
           ]
+        }
+      },
+      {
+        mark:{
+          type:"text",
+          align:"left",
+          baseline:"middle",
+          dx:12,
+          font:"Roboto Mono",
+          fontSize:11,
+          color:"rgba(255,255,255,0.742)"
         },
-        config:cfg
-      },{actions:false});
+        encoding:{
+          x:{field:"wh1k", type:"quantitative"},
+          y:{field:"model", type:"nominal", sort:"-x"},
+          text:{field:"wh1k", format:".3f"}
+        }
+      }
+    ],
+    config:cfg
+  },{actions:false});
+});
     });
   });
 
@@ -552,7 +600,7 @@ function initScatter(models){
     const data=filterDev==='all'?top100:top100.filter(m=>m.dev===filterDev);
     const chartWidth=document.getElementById('scatter-chart').clientWidth||800;
     const ySort=["Reasoning","Text","Image","Speech"];
-    const colScale={domain:ySort,range:["#378ADD","#03FFA5","#D85A30","#a57cf7"]};
+    const colScale={domain:ySort,range:["#378ADD","#FFD21E","#D85A30","#a57cf7"]};
     
     const xAxisCfg={
       labelColor:"rgba(255,255,255,0.742)",
