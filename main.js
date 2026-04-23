@@ -48,6 +48,7 @@ function showChartError(message){
 })();
 
 /* ─── GLOBE ─── */
+/* ─── GLOBE ─── */
 function initGlobe(devs){
   const wrap=document.getElementById('sphere-wrap');
   const bubLayer=document.getElementById('bubble-layer');
@@ -56,7 +57,8 @@ function initGlobe(devs){
 
   wrap.innerHTML='';
 
-  const maxModels=Math.max(...devs.map(d=>d.models));
+  // 字体大小按总能量映射
+  const maxEnergy=Math.max(...devs.map(d=>d.total_wh1k))||1;
   const maxWh1k=Math.max(...devs.map(d=>d.maxWh1k))||1;
 
   function fibSphere(n){
@@ -80,7 +82,7 @@ function initGlobe(devs){
   const tags=[];
   devs.forEach((d,i)=>{
     const [r,g,b]=d.rgb;
-    const fsize=Math.round(11+(d.models/maxModels)*14);
+    const fsize=Math.round(11+(d.total_wh1k/maxEnergy)*14);   // ← 按总能量映射字体
     const el=document.createElement('div');
     el.className='globe-tag';
     el.textContent=d.name;
@@ -108,7 +110,7 @@ function initGlobe(devs){
   function spawnBubbles(e,dev,rgb){
     const bx=e.clientX, by=e.clientY;
     const [r,g,b]=rgb;
-    const count=Math.round(4+(dev.models/maxModels)*12);
+    const count=Math.round(4+(dev.models/Math.max(...devs.map(d=>d.models)))*12);
     const szBase=5+(dev.maxWh1k/maxWh1k)*17;
     for(let i=0;i<count;i++){
       const bub=document.createElement('div');
@@ -190,10 +192,14 @@ function initVega(models, global){
 
   let g2024 = global.find(g=>g.year===2024);
   let g2025 = global.find(g=>g.year===2025);
+  let g2030 = global.find(g=>g.year===2030);
+
   if(!g2024 || !g2025){
     showChartError('Global TWh data for 2024/2025 not available from CSV; using fallback values.');
     g2024 = g2024 || FALLBACK_GLOBAL.find(g=>g.year===2024);
     g2025 = g2025 || FALLBACK_GLOBAL.find(g=>g.year===2025);
+    g2030 = g2030 || {year:2030,total_twh:600,ai_twh:150,rest_twh:450,source:'extrapolation'};
+    
   }
 
   if(!g2024 || !g2025){
@@ -203,37 +209,37 @@ function initVega(models, global){
 
   const pieWidth = Math.min(400, document.getElementById('pie-2024').clientWidth || 400);
   
-  // 2024 饼图
+  // 2030 饼图
   vegaEmbed('#pie-2024',{
     $schema:"https://vega.github.io/schema/vega-lite/v5.json",
-    title: {
-      text: `2024 GLOBAL TOTAL: ${g2024.total_twh} TWH`,
-      anchor: "middle",
-      color: "rgba(255,255,255,0.742)",  
-      fontSize: 16,
-      font: "Roboto Mono",
-      letterSpacing: 0.2,
-      offset: 20,
-      frame: "group"
-    },
-    data:{values:[
-      {c:"AI share", v:g2024.ai_twh, percentage:(g2024.ai_twh/g2024.total_twh*100).toFixed(0)+'%'},
-      {c:"Rest", v:g2024.rest_twh, percentage:(g2024.rest_twh/g2024.total_twh*100).toFixed(0)+'%'}
-    ]},
-    width:pieWidth, 
-    height:190, 
-    background:"transparent",
-    mark:{type:"arc", innerRadius:52, outerRadius:88, padAngle:.03},
-    encoding:{
-      theta:{field:"v", type:"quantitative"},
-      color:{field:"c", type:"nominal", scale:{range:["#03FFA5","#111e16"]}, legend:null},
-      tooltip:[
-        {field:"c", title:"source"},
-        {field:"v", title:"TWh"},
-        {field:"percentage", title:"percentage"}
-      ]
-    },
-    config:cfg
+  title: {
+    text: `2030 GLOBAL TOTAL: ${g2030.total_twh} TWH`,
+    anchor: "middle",
+    color: "rgba(255,255,255,0.742)",  
+    fontSize: 16,
+    font: "Roboto Mono",
+    letterSpacing: 0.2,
+    offset: 20,
+    frame: "group"
+  },
+  data:{values:[
+    {c:"AI share", v:g2030.ai_twh, percentage:(g2030.ai_twh/g2030.total_twh*100).toFixed(0)+'%'},
+    {c:"Rest", v:g2030.rest_twh, percentage:(g2030.rest_twh/g2030.total_twh*100).toFixed(0)+'%'}
+  ]},
+  width:pieWidth, 
+  height:190, 
+  background:"transparent",
+  mark:{type:"arc", innerRadius:52, outerRadius:88, padAngle:.03},
+  encoding:{
+    theta:{field:"v", type:"quantitative"},
+    color:{field:"c", type:"nominal", scale:{range:["#03FFA5","#111e16"]}, legend:null},
+    tooltip:[
+      {field:"c", title:"source"},
+      {field:"v", title:"TWh"},
+      {field:"percentage", title:"percentage"}
+    ]
+  },
+  config:cfg
   },{actions:false});
 
   // 2025 饼图
@@ -283,177 +289,172 @@ function initVega(models, global){
   const devMaxDomain = Math.max(devMax * 1.02, devMax + 0.01);
 
   let activeDev=null;
-  vegaEmbed('#bar-top10-dev',{
-    $schema:"https://vega.github.io/schema/vega-lite/v5.json",
-    data:{values:top10Dev},
-    width:chartWidth, height:340, background:"transparent", autosize:{type:"fit",contains:"padding"}, padding:{right:1},
-    mark:{type:"bar", cornerRadiusEnd:2, size:26, cursor:"pointer"},
-    encoding:{
-      x:{
-        field:"total_wh1k",
-        type:"quantitative",
-        title:"Total Wh per 1000 queries",
-        scale:{domain:[0,devMaxDomain], nice:false},
-        axis:{
-          labelColor:'rgba(255,255,255,0.742)',
-          titleColor:'rgba(255,255,255,0.742)',
-          labelFontSize:12,
-          titleFontSize:14,        
-          titleFontWeight:400, 
-          titlePadding:12,
-          tickColor:'rgba(255,255,255,0.8)',
-          gridColor:'rgba(3,255,165,0.05)'
-        }
-      },
-      y:{
-        field:"dev",
-        type:"nominal",
-        sort:null,
-        title:null,
-        axis:{
-          labelColor:'rgba(255,255,255,0.742)',
-          labelFontSize:12,
-          labelFont:"Roboto Mono"
-        }
-      },
-      color:{
-        field:"isTop3",
-        type:"nominal",
-        scale:{domain:[true,false], range:["#03FFA5","#2a4a3f"]},
-        legend:null
-      },
-      tooltip:[
-        {field:"total_wh1k", title:"Total Wh/1000", format:".2f"},
-        {field:"count", title:"Models"}
-      ]
-    },
-    config:cfg
-  },{actions:false}).then(result=>{
-    result.view.addEventListener('click',(_,item)=>{
-      if(!item||!item.datum) return;
-      const d=item.datum;
-      if(!d.isTop3) return;
-      const drill=document.getElementById('dev-drill');
-      const label=document.getElementById('dev-drill-label');
-      if(activeDev===d.dev){ activeDev=null; drill.style.display='none'; return; }
-      activeDev=d.dev;
-      const devModelsRaw=models.filter(m=>m.dev===d.dev);
-      const devModels=devModelsRaw;
-      const modelMax2=Math.ceil(Math.max(...devModels.map(m=>m.wh1k)));
-      const drillWidth=Math.min(chartWidth, document.getElementById('bar-top10-dev').clientWidth||chartWidth);
-      label.textContent=`↳ ${d.dev} — all models · Wh per 1,000 queries  (click again to close)`;
-      label.style.fontFamily="Roboto Mono";
-      label.style.fontSize="12px";
-      label.style.letterSpacing="0.04em";
-      drill.style.display='block';
 
-     result.view.addEventListener('click',(_,item)=>{
-  if(!item||!item.datum) return;
-  const d=item.datum;
-  if(!d.isTop3) return;
-  const drill=document.getElementById('dev-drill');
-  const label=document.getElementById('dev-drill-label');
-  if(activeDev===d.dev){ activeDev=null; drill.style.display='none'; return; }
-  activeDev=d.dev;
-  
-  // 先过滤，再按 model 去重（保留最高 wh1k）
-  const devModelsRaw=models.filter(m=>m.dev===d.dev);
-  const devModelMap={};
-  devModelsRaw.forEach(m=>{
-    if(!devModelMap[m.model]||m.wh1k>devModelMap[m.model].wh1k) devModelMap[m.model]=m;
-  });
-  const devModels=Object.values(devModelMap);
-  
-  const modelMax2=Math.ceil(Math.max(...devModels.map(m=>m.wh1k)));
-  const drillWidth=Math.min(chartWidth, document.getElementById('bar-top10-dev').clientWidth||chartWidth);
-  
-  label.textContent=`↳ ${d.dev} — ${devModels.length} models · Wh per 1,000 queries (click to close)`;
-  label.style.fontFamily="Roboto Mono";
-  label.style.fontSize="12px";
-  label.style.letterSpacing="0.04em";
-  drill.style.display='block';
-
-  vegaEmbed('#dev-drill-chart',{
-    $schema:"https://vega.github.io/schema/vega-lite/v5.json",
-    data:{values:devModels},
-    width:drillWidth, 
-    background:"transparent", 
-    autosize:{type:"fit",contains:"padding"}, 
-    padding:{right:80},
-    layer:[
-      {
-        mark:{type:"bar", cornerRadiusEnd:3, size:18},
-        encoding:{
-          x:{
-            field:"wh1k",
-            type:"quantitative",
-            title:"Wh per 1,000 queries",
-            scale:{domain:[0,modelMax2 + 1], nice:false},
-            axis:{
-              labelColor:'rgba(255,255,255,0.742)',
-              titleColor:'rgba(255,255,255,0.742)',
-              labelFontSize:12,
-              titleFontSize:14,      
-              titleFontWeight:400,
-              titlePadding:10,
-              tickColor:'rgba(255,255,255,0.6)',
-              tickCount:10,
-              format:".0f",
-              gridColor:'rgba(3,255,165,0.05)'
-            }
-          },
-          y:{
-            field:"model",
-            type:"nominal",
-            sort:"-x",
-            title:null,
-            axis:{
-              labelColor:'rgba(255,255,255,0.742)',
-              labelFontSize:12,
-              labelFont:"Roboto Mono"
-            }
-          },
-          color:{
-            field:"type",
-            type:"nominal",
-            scale:{domain:typeDomain, range:typeColors},
-            legend:{
-              title:null,
-              orient:"top",
-              labelColor:'rgba(255,255,255,0.742)',
-              labelFontSize:12,
-              labelFont:"Roboto Mono"
-            }
-          },
-          tooltip:[
-            {field:"model", title:"Model"},
-            {field:"type", title:"Task Type"},
-            {field:"wh1k", title:"Wh/1000 queries", format:".3f"}
-          ]
-        }
-      },
-      {
-        mark:{
-          type:"text",
-          align:"left",
-          baseline:"middle",
-          dx:12,
-          font:"Roboto Mono",
-          fontSize:11,
-          color:"rgba(255,255,255,0.742)"
-        },
-        encoding:{
-          x:{field:"wh1k", type:"quantitative"},
-          y:{field:"model", type:"nominal", sort:"-x"},
-          text:{field:"wh1k", format:".3f"}
-        }
+vegaEmbed('#bar-top10-dev',{
+  $schema:"https://vega.github.io/schema/vega-lite/v5.json",
+  data:{values:top10Dev},
+  width:chartWidth, 
+  height:340, 
+  background:"transparent", 
+  autosize:{type:"fit",contains:"padding"}, 
+  padding:{right:1},
+  mark:{type:"bar", cornerRadiusEnd:2, size:26, cursor:"pointer"},
+  encoding:{
+    x:{
+      field:"total_wh1k",
+      type:"quantitative",
+      title:"Total Wh per 1000 queries",
+      scale:{domain:[0,devMaxDomain], nice:false},
+      axis:{
+        labelColor:'rgba(255,255,255,0.742)',
+        titleColor:'rgba(255,255,255,0.742)',
+        labelFontSize:12,
+        titleFontSize:14,        
+        titleFontWeight:400, 
+        titlePadding:12,
+        tickColor:'rgba(255,255,255,0.8)',
+        gridColor:'rgba(3,255,165,0.05)'
       }
-    ],
-    config:cfg
-  },{actions:false});
-});
+    },
+    y:{
+      field:"dev",
+      type:"nominal",
+      sort:null,
+      title:null,
+      axis:{
+        labelColor:'rgba(255,255,255,0.742)',
+        labelFontSize:12,
+        labelFont:"Roboto Mono"
+      }
+    },
+    color:{
+      field:"isTop3",
+      type:"nominal",
+      scale:{domain:[true,false], range:["#03FFA5","#2a4a3f"]},
+      legend:null
+    },
+    tooltip:[
+      {field:"total_wh1k", title:"Total Wh/1000", format:".2f"},
+      {field:"count", title:"Models"}
+    ]
+  },
+  config:cfg
+},{actions:false}).then(result=>{
+  result.view.addEventListener('click',(_,item)=>{
+    if(!item||!item.datum) return;
+    const d=item.datum;
+    if(!d.isTop3) return;
+    
+    const drill=document.getElementById('dev-drill');
+    const label=document.getElementById('dev-drill-label');
+    
+    // Toggle: if already open for this dev, close it
+    if(activeDev===d.dev){ 
+      activeDev=null; 
+      drill.style.display='none'; 
+      return; 
+    }
+    
+    activeDev=d.dev;
+    
+    // Deduplicate: keep max wh1k per model name
+    const devModelsRaw=models.filter(m=>m.dev===d.dev);
+    const devModelMap={};
+    devModelsRaw.forEach(m=>{
+      if(!devModelMap[m.model]||m.wh1k>devModelMap[m.model].wh1k) devModelMap[m.model]=m;
     });
+    const devModels=Object.values(devModelMap);
+    
+    const modelMax2=Math.ceil(Math.max(...devModels.map(m=>m.wh1k)));
+    const drillWidth=Math.min(chartWidth, document.getElementById('bar-top10-dev').clientWidth||chartWidth);
+    
+    label.textContent=`↳ ${d.dev} — ${devModels.length} models · Wh per 1,000 queries (click to close)`;
+    label.style.fontFamily="Roboto Mono";
+    label.style.fontSize="12px";
+    label.style.letterSpacing="0.04em";
+    drill.style.display='block';
+
+    // Render drill chart immediately — no nested listener
+    vegaEmbed('#dev-drill-chart',{
+      $schema:"https://vega.github.io/schema/vega-lite/v5.json",
+      data:{values:devModels},
+      width:drillWidth, 
+      background:"transparent", 
+      autosize:{type:"fit",contains:"padding"}, 
+      padding:{right:80},
+      layer:[
+        {
+          mark:{type:"bar", cornerRadiusEnd:3, size:18},
+          encoding:{
+            x:{
+              field:"wh1k",
+              type:"quantitative",
+              title:"Wh per 1,000 queries",
+              scale:{domain:[0,modelMax2 + 1], nice:false},
+              axis:{
+                labelColor:'rgba(255,255,255,0.742)',
+                titleColor:'rgba(255,255,255,0.742)',
+                labelFontSize:12,
+                titleFontSize:14,      
+                titleFontWeight:400,
+                titlePadding:10,
+                tickColor:'rgba(255,255,255,0.6)',
+                tickCount:10,
+                format:".0f",
+                gridColor:'rgba(3,255,165,0.05)'
+              }
+            },
+            y:{
+              field:"model",
+              type:"nominal",
+              sort:"-x",
+              title:null,
+              axis:{
+                labelColor:'rgba(255,255,255,0.742)',
+                labelFontSize:12,
+                labelFont:"Roboto Mono"
+              }
+            },
+            color:{
+              field:"type",
+              type:"nominal",
+              scale:{domain:typeDomain, range:typeColors},
+              legend:{
+                title:null,
+                orient:"top",
+                labelColor:'rgba(255,255,255,0.742)',
+                labelFontSize:12,
+                labelFont:"Roboto Mono"
+              }
+            },
+            tooltip:[
+              {field:"model", title:"Model"},
+              {field:"type", title:"Task Type"},
+              {field:"wh1k", title:"Wh/1000 queries", format:".3f"}
+            ]
+          }
+        },
+        {
+          mark:{
+            type:"text",
+            align:"left",
+            baseline:"middle",
+            dx:12,
+            font:"Roboto Mono",
+            fontSize:11,
+            color:"rgba(255,255,255,0.742)"
+          },
+          encoding:{
+            x:{field:"wh1k", type:"quantitative"},
+            y:{field:"model", type:"nominal", sort:"-x"},
+            text:{field:"wh1k", format:".3f"}
+          }
+        }
+      ],
+      config:cfg
+    },{actions:false});
   });
+});
 
   // Top 10 model chart (deduplicate by model name, keep max wh1k)
   const modelMap={};
@@ -631,7 +632,7 @@ function initScatter(models){
     vegaEmbed('#scatter-chart',{
       $schema:"https://vega.github.io/schema/vega-lite/v5.json",
       width:chartWidth,
-      height:460,
+      height:600,
       background:"transparent",
       autosize:{type:"fit",contains:"padding"},
       padding:{bottom:40},
@@ -639,25 +640,33 @@ function initScatter(models){
         {
           data:{values:data},
           transform:[{calculate:"random()",as:"jitter"}],
-          mark:{type:"point",size:55,filled:true,opacity:0.75,clip:true},
+          mark:{type:"point",size:40,filled:true,opacity:0.75,clip:true}, // size 55→40
           encoding:{
             x:{
-              field:"co2_1000",
-              type:"quantitative",
-              title:"CO₂ per 1000 queries (g)",
-              scale:{type:"linear",domainMax:6.5},
-              axis:xAxisCfg
-            },
+  field:"co2_1000",
+  type:"quantitative",
+  title:"CO₂ per 1000 queries (g)",
+  // 删掉 scale 里的 domainMax，或只保留 type:"linear"
+  axis:xAxisCfg
+},
             y:{
               field:"type",
               type:"nominal",
               sort:ySort,
-              scale:{domain:ySort,paddingInner:0.2,paddingOuter:0.1},
+              scale:{domain:ySort,paddingInner:0.1,paddingOuter:0.2}, // 0.2/0.1 → 0.4/0.2
               axis:yAxisCfg
             },
-            yOffset:{field:"jitter",type:"quantitative",scale:{domain:[0,1],range:[20,75]}},
+            yOffset:{
+              field:"jitter",
+              type:"quantitative",
+              scale:{domain:[0,1],range:[20,140]} // 20,75 → -80,160 大幅扩展
+            },
             color:{field:"type",type:"nominal",scale:colScale,legend:null},
-            tooltip:[{field:"model"},{field:"dev"},{field:"co2_1000",title:"CO₂/1000q (g)",format:".4f"}]
+            tooltip:[
+              {field:"model"},
+              {field:"dev"},
+              {field:"co2_1000",title:"CO₂/1000q (g)",format:".4f"}
+            ]
           }
         }
       ],
@@ -982,10 +991,17 @@ window.addEventListener('DOMContentLoaded',()=>{
   ]).then(([models, global])=>{
     const devMap={};
     models.forEach(m=>{
-      if(!devMap[m.dev]) devMap[m.dev]={name:m.dev,models:0,maxCo2:0,maxWh1k:0};
+      if(!devMap[m.dev]) devMap[m.dev]={
+        name:m.dev,
+        models:0,
+        maxCo2:0,
+        maxWh1k:0,
+        total_wh1k:0          // 总能量累加字段
+      };
       devMap[m.dev].models++;
       devMap[m.dev].maxCo2=Math.max(devMap[m.dev].maxCo2,m.co2_100);
       devMap[m.dev].maxWh1k=Math.max(devMap[m.dev].maxWh1k,m.wh1k);
+      devMap[m.dev].total_wh1k+=m.wh1k;   // 累加该 developer 所有模型的 wh1k
     });
     function hexToRgbArr(hex){
       return [parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16)];
